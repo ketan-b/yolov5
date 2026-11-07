@@ -1,43 +1,95 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
-# DIUx xView 2018 Challenge https://challenge.xviewdataset.org by U.S. National Geospatial-Intelligence Agency (NGA)
-# --------  DOWNLOAD DATA MANUALLY and jar xf val_images.zip to 'datasets/xView' before running train command!  --------
+# Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
+
+# DIUx xView 2018 Challenge dataset https://challenge.xviewdataset.org by U.S. National Geospatial-Intelligence Agency (NGA)
+# --------  Download and extract train_labels.zip, train_images.zip and val_images.zip manually to `datasets/xView` before running the train command.  --------
+# Documentation: https://docs.ultralytics.com/datasets/detect/xview
+# Dataset format: https://docs.ultralytics.com/datasets/detect#ultralytics-yolo-format
+# Training docs: https://docs.ultralytics.com/modes/train
 # Example usage: python train.py --data xView.yaml
 # parent
 # ├── yolov5
 # └── datasets
-#     └── xView  ← downloads here
-
+#     └── xView  ← downloads here (20.7 GB)
 
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
-path: ../datasets/xView  # dataset root dir
-train: images/autosplit_train.txt  # train images (relative to 'path') 90% of 847 train images
-val: images/autosplit_val.txt  # train images (relative to 'path') 10% of 847 train images
+path: ../datasets/xView # dataset root dir
+train: images/autosplit_train.txt # train images (relative to 'path') 90% of 847 train images
+val: images/autosplit_val.txt # val images (relative to 'path') 10% of 847 train images
 
 # Classes
-nc: 60  # number of classes
-names: ['Fixed-wing Aircraft', 'Small Aircraft', 'Cargo Plane', 'Helicopter', 'Passenger Vehicle', 'Small Car', 'Bus',
-        'Pickup Truck', 'Utility Truck', 'Truck', 'Cargo Truck', 'Truck w/Box', 'Truck Tractor', 'Trailer',
-        'Truck w/Flatbed', 'Truck w/Liquid', 'Crane Truck', 'Railway Vehicle', 'Passenger Car', 'Cargo Car',
-        'Flat Car', 'Tank car', 'Locomotive', 'Maritime Vessel', 'Motorboat', 'Sailboat', 'Tugboat', 'Barge',
-        'Fishing Vessel', 'Ferry', 'Yacht', 'Container Ship', 'Oil Tanker', 'Engineering Vehicle', 'Tower crane',
-        'Container Crane', 'Reach Stacker', 'Straddle Carrier', 'Mobile Crane', 'Dump Truck', 'Haul Truck',
-        'Scraper/Tractor', 'Front loader/Bulldozer', 'Excavator', 'Cement Mixer', 'Ground Grader', 'Hut/Tent', 'Shed',
-        'Building', 'Aircraft Hangar', 'Damaged Building', 'Facility', 'Construction Site', 'Vehicle Lot', 'Helipad',
-        'Storage Tank', 'Shipping container lot', 'Shipping Container', 'Pylon', 'Tower']  # class names
-
+names:
+  0: Fixed-wing Aircraft
+  1: Small Aircraft
+  2: Cargo Plane
+  3: Helicopter
+  4: Passenger Vehicle
+  5: Small Car
+  6: Bus
+  7: Pickup Truck
+  8: Utility Truck
+  9: Truck
+  10: Cargo Truck
+  11: Truck w/Box
+  12: Truck Tractor
+  13: Trailer
+  14: Truck w/Flatbed
+  15: Truck w/Liquid
+  16: Crane Truck
+  17: Railway Vehicle
+  18: Passenger Car
+  19: Cargo Car
+  20: Flat Car
+  21: Tank car
+  22: Locomotive
+  23: Maritime Vessel
+  24: Motorboat
+  25: Sailboat
+  26: Tugboat
+  27: Barge
+  28: Fishing Vessel
+  29: Ferry
+  30: Yacht
+  31: Container Ship
+  32: Oil Tanker
+  33: Engineering Vehicle
+  34: Tower crane
+  35: Container Crane
+  36: Reach Stacker
+  37: Straddle Carrier
+  38: Mobile Crane
+  39: Dump Truck
+  40: Haul Truck
+  41: Scraper/Tractor
+  42: Front loader/Bulldozer
+  43: Excavator
+  44: Cement Mixer
+  45: Ground Grader
+  46: Hut/Tent
+  47: Shed
+  48: Building
+  49: Aircraft Hangar
+  50: Damaged Building
+  51: Facility
+  52: Construction Site
+  53: Vehicle Lot
+  54: Helipad
+  55: Storage Tank
+  56: Shipping container lot
+  57: Shipping Container
+  58: Pylon
+  59: Tower
 
 # Download script/URL (optional) ---------------------------------------------------------------------------------------
 download: |
   import json
-  import os
+  import shutil
   from pathlib import Path
 
   import numpy as np
   from PIL import Image
-  from tqdm import tqdm
 
-  from utils.datasets import autosplit
-  from utils.general import download, xyxy2xywhn
+  from ultralytics.data.split import autosplit
+  from utils.general import download, xyxy2xywhn, TQDM
 
 
   def convert_labels(fname=Path('xView/xView_train.geojson')):
@@ -49,7 +101,10 @@ download: |
 
       # Make dirs
       labels = Path(path / 'labels' / 'train')
-      os.system(f'rm -rf {labels}')
+      if labels.is_symlink() or labels.is_file():
+          labels.unlink()
+      else:
+          shutil.rmtree(labels, ignore_errors=True)
       labels.mkdir(parents=True, exist_ok=True)
 
       # xView classes 11-94 to 0-59
@@ -59,7 +114,7 @@ download: |
                            47, 48, 49, -1, 50, 51, -1, 52, -1, -1, -1, 53, 54, -1, 55, -1, -1, 56, -1, 57, -1, 58, 59]
 
       shapes = {}
-      for feature in tqdm(data['features'], desc=f'Converting {fname}'):
+      for feature in TQDM(data['features'], desc=f'Converting {fname}'):
           p = feature['properties']
           if p['bounds_imcoords']:
               id = p['image_id']
@@ -75,7 +130,7 @@ download: |
                       # Write YOLO label
                       if id not in shapes:
                           shapes[id] = Image.open(file).size
-                      box = xyxy2xywhn(box[None].astype(np.float), w=shapes[id][0], h=shapes[id][1], clip=True)
+                      box = xyxy2xywhn(box[None].astype(np.float64), w=shapes[id][0], h=shapes[id][1], clip=True)
                       with open((labels / id).with_suffix('.txt'), 'a') as f:
                           f.write(f"{cls} {' '.join(f'{x:.6f}' for x in box[0])}\n")  # write label.txt
                   except Exception as e:
